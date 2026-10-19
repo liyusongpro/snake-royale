@@ -61,7 +61,7 @@ h1{margin:2px 0 6px;font-size:38px;letter-spacing:4px;background:linear-gradient
   #start .ctrl{grid-area:c;margin-bottom:12px;font-size:12px}
   #start .btn{grid-area:b}
   #start .best{grid-area:best;margin-top:8px}
-  #start .rules{grid-area:r;margin:0;font-size:13.5px;line-height:1.75;background:rgba(255,255,255,.06);border-radius:16px;padding:12px 12px 12px 30px}
+  #start .rules{grid-area:r;margin:0;font-size:12.5px;line-height:1.6;background:rgba(255,255,255,.06);border-radius:16px;padding:12px 12px 12px 30px}
   .big{font-size:26px;margin:0 0 4px}
   .stats{grid-template-columns:repeat(4,1fr);margin:12px 0 14px}
   .stats b{font-size:21px}
@@ -71,7 +71,7 @@ h1{margin:2px 0 6px;font-size:38px;letter-spacing:4px;background:linear-gradient
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="fling" class="hidden">甩出<small id="satN">0 颗</small></div>
+<div id="fling" class="hidden">甩出<small id="satN">弹药 0/3</small></div>
 <div id="safe"></div>
 <div id="rotate" class="hidden"><div class="ph"></div><div class="t1">请把手机横过来玩</div><div class="t2">横屏视野更大，左手摇杆、右手甩出<br>（记得关闭手机的竖屏锁定）</div><div class="t3" id="pauseTip"></div></div>
 
@@ -79,11 +79,11 @@ h1{margin:2px 0 6px;font-size:38px;letter-spacing:4px;background:linear-gradient
   <h1>引力星球</h1>
   <div class="sub">15 颗星球 · 1 个霸主 · 一局约 2 分钟</div>
   <ul class="rules">
-    <li>靠近<b>星尘</b>自动吸收变大，<b>陨石</b>会被引力抓来绕着你转</li>
-    <li>按<b>「甩出」</b>把卫星陨石砸向别人，打掉它的质量和卫星</li>
-    <li>比对方大很多就能<b>一口吞掉</b>它；靠近大星球，卫星会被它<b>抢走</b></li>
-    <li><b>道具</b>：<span class="tag" style="background:#7b2cff">洞</span>超强引力<span class="tag" style="background:#2ab7ff">盾</span>护盾<span class="tag" style="background:#ff9f1c">彗</span>加速<span class="tag" style="background:#ff4d8d">裂</span>一甩三发</li>
-    <li>宇宙的<b>黑暗</b>不断逼近，待在外面会流失质量，活到最后就是霸主！</li>
+    <li><span class="tag" style="background:#36c9d6">尘</span><b>吃发光星尘变大</b>：星尘只加质量</li>
+    <li><span class="tag" style="background:#9a7b5f">石</span><b>吸陨石当弹药</b>：陨石绕着你转，点<b>「甩出」</b>自动瞄准最近的敌人，逃跑时也能回头打</li>
+    <li><b>打中</b>对方会掉质量、洒出星尘，捡来吃掉，小星球也能把大的打小再吞掉</li>
+    <li><b style="color:#4dff88">绿色可吃</b>（你比它大 1.3 倍，压上去就吞），<b style="color:#ff6b88">红色快跑</b>；差不多大就互相弹开、各掉 2 颗弹药</li>
+    <li>道具：<span class="tag" style="background:#7b2cff">洞</span>抢别人弹药<span class="tag" style="background:#2ab7ff">盾</span>护盾<span class="tag" style="background:#ff9f1c">彗</span>加速<span class="tag" style="background:#ff4d8d">裂</span>一发变三发；<b>黑暗</b>会逼近，待在外面掉质量</li>
   </ul>
   <div class="ctrl" id="ctrlTip"></div>
   <button class="btn" id="startBtn">开始游戏</button>
@@ -115,18 +115,19 @@ function resize(){DPR=Math.min(2,window.devicePixelRatio||1);W=window.innerWidth
   const se=document.getElementById('safe');if(se){const cs=getComputedStyle(se);SAFE.t=parseFloat(cs.paddingTop)||0;SAFE.r=parseFloat(cs.paddingRight)||0;SAFE.b=parseFloat(cs.paddingBottom)||0;SAFE.l=parseFloat(cs.paddingLeft)||0;}
   PORTRAIT=TOUCH&&H>W;const ro=document.getElementById('rotate');if(ro)ro.classList.toggle('hidden',!PORTRAIT);
   const pt=document.getElementById('pauseTip');if(pt)pt.textContent=(PORTRAIT&&state==='play')?'⏸ 游戏已暂停，横过来继续':'';
-  if(PORTRAIT&&input){input.joy=null;input.btnFling=false;}}
+  if(PORTRAIT&&input){input.joy=null;input.fire=null;}}
 window.addEventListener('resize',resize);window.addEventListener('orientationchange',()=>setTimeout(resize,250));
 
 // ---------- 配置 ----------
 const R0=2000,WORLD_R=R0+180,BOT_COUNT=14,START_MASS=20,MAX_MASS=650,KILL_MASS=8,MAX_DUST=1100,MAX_ROCKS=560,ITEM_TARGET=10;
-const PROJ_SPEED=720,PROJ_TTL=0.85,FLING_CD=0.3,SWALLOW_RATIO=1.45,STEAL_RATIO=1.2;
-const ZHOLD=12,PHASES=[[0.6,24,9],[0.34,22,8],[0.15,18,6],[0,20,0]];
+const PROJ_SPEED=760,PROJ_TTL=0.9,FIRE_CD=0.2,AIM_RANGE=620,SWALLOW_RATIO=1.3,SLOT_MAX=12;
+const TIERS=[0,45,100,180,300,450];
+const ZHOLD=14,PHASES=[[0.62,28,10],[0.37,25,9],[0.17,21,7],[0,22,0]];
 const TAU=Math.PI*2,JOY_R=58;
 const NAMES=['星星','月饼','小陨','光年','彗彗','银河','糯米','泡泡','啵啵','蓝莓','汽水','棉花糖','布丁','极光','流星雨','土豆星','奶盖','团子','芋圆','晚霞'];
 const PALETTE=[['#ff6b9a','#ffc2d6'],['#ffc93c','#fff1b8'],['#3ecf8e','#c4f5de'],['#4aa8ff','#cfe7ff'],['#a77bff','#e6d9ff'],['#ff7a45','#ffd5c2'],['#2ed3d3','#c8f6f6'],['#f25c54','#ffcfca'],['#9ccc3c','#e6f6c0'],['#5c7cfa','#d6deff'],['#e86fd0','#fbd3f2'],['#26c6a6','#c3f3ea'],['#ffb347','#ffe5c2'],['#7fd8ff','#e2f6ff'],['#c77dff','#efdcff']]
   .map(([a,b],i)=>({i,main:a,light:b,dark:shade(a,-0.45)}));
-const DUST_COLORS=['#ffd166','#ff8fab','#7bf1a8','#5ee7ff','#c3a6ff','#ffffff','#ffb38a'];
+const DUST_C='#7ff3ff',DUST_COLORS=[DUST_C];
 const ITEMS={
   hole:{c:'#7b2cff',ch:'洞',dur:8,name:'黑洞核心'},
   shield:{c:'#2ab7ff',ch:'盾',dur:9,name:'护盾'},
@@ -162,18 +163,19 @@ function starField(x,T,n,a,sz){for(let i=0;i<n;i++){const px=Math.random()*T,py=
 const nebula=(()=>{const c=mkCanvas(NEB_T,NEB_T),x=c.getContext('2d');x.fillStyle='#070b24';x.fillRect(0,0,NEB_T,NEB_T);const cols=['#5b2bd6','#1f6fd1','#c2347e','#1aa39a','#3a2fb0'];
   for(let i=0;i<9;i++){const px=Math.random()*NEB_T,py=Math.random()*NEB_T,r=rand(160,330),col=cols[i%cols.length];
     for(const ox of [-NEB_T,0,NEB_T])for(const oy of [-NEB_T,0,NEB_T]){const g=x.createRadialGradient(px+ox,py+oy,0,px+ox,py+oy,r);g.addColorStop(0,col+'40');g.addColorStop(1,col+'00');x.fillStyle=g;x.fillRect(px+ox-r,py+oy-r,r*2,r*2);}}
-  starField(x,NEB_T,560,0.6,1.0);return c;})();
+  starField(x,NEB_T,320,0.42,0.9);return c;})();
 // 近景星星（透明贴图，视差更大）
-const starLayers=[(()=>{const c=mkCanvas(STAR_T,STAR_T),x=c.getContext('2d');starField(x,STAR_T,70,1.0,1.6);starField(x,STAR_T,22,1.4,2.4);return {c,f:0.18};})()];
+const starLayers=[(()=>{const c=mkCanvas(STAR_T,STAR_T),x=c.getContext('2d');starField(x,STAR_T,60,0.6,1.3);starField(x,STAR_T,16,0.85,2.0);return {c,f:0.18};})()];
 
 // ---------- 状态 ----------
 let G=null,state='menu';
 const cam={x:0,y:0,z:0.8};
-const input={ang:0,btnFling:false,keyFling:false,mouseFling:false,flingQ:false,joy:null,keys:{},mouseAim:false,mx:0,my:0};
+const input={ang:0,fire:null,tapQ:false,manualQ:null,mouseDownT:0,keyDownT:0,joy:null,keys:{},mouseAim:false,mx:0,my:0};
 resize();
 
 function radiusOf(m){return 10+Math.sqrt(m)*2.6;}
-function derive(p){p.r=radiusOf(p.mass);p.gR=(p.r*1.7+85)*(p.pw.hole>0?1.8:1);p.slots=Math.min(30,3+Math.floor(p.mass/15))+(p.pw.hole>0?6:0);}
+function tierOf(m){let t=0;for(let i=1;i<TIERS.length;i++)if(m>=TIERS[i])t=i;return t;}
+function derive(p){p.r=radiusOf(p.mass);p.gR=(p.r*1.7+85)*(p.pw.hole>0?1.8:1);p.tier=tierOf(p.mass);p.slots=Math.min(SLOT_MAX,3+p.tier*2);}
 function maxSpeed(p){return (140+150/(1+p.mass/90))*(p.pw.comet>0?1.55:1);}
 
 // ---------- 安全区（宇宙黑暗） ----------
@@ -197,8 +199,8 @@ function zoneAt(t){
 function randInZone(margin){const z=G.zone;const r=Math.max(0,z.r-margin);const a=rand(0,TAU),d=Math.sqrt(Math.random())*r;return {x:z.x+Math.cos(a)*d,y:z.y+Math.sin(a)*d};}
 
 // ---------- 实体 ----------
-function addDust(x,y,v,c,vx,vy){if(G.dust.length>=MAX_DUST)return;G.dust.push({x,y,v,vx:vx||0,vy:vy||0,c:c||DUST_COLORS[(Math.random()*DUST_COLORS.length)|0],ph:Math.random()*TAU,s:v>1.5?1.5:1});}
-function newRock(x,y,vx,vy){return {x,y,vx:vx||0,vy:vy||0,r:rand(6,9),sp:(Math.random()*8)|0,rot:rand(0,TAU),vr:rand(-3,3),owner:null,ttl:0,nocap:0,noOwner:null,px:x,py:y};}
+function addDust(x,y,v,c,vx,vy,ban){if(G.dust.length>=MAX_DUST)return;G.dust.push({x,y,v,vx:vx||0,vy:vy||0,c:DUST_C,ph:Math.random()*TAU,ban:ban||null,bt:ban?1.3:0});}
+function newRock(x,y,vx,vy){return {x,y,vx:vx||0,vy:vy||0,r:rand(8.5,11),sp:(Math.random()*8)|0,rot:rand(0,TAU),vr:rand(-3,3),owner:null,ttl:0,nocap:0,noOwner:null,px:x,py:y};}
 function rockCount(){let n=G.rocks.length+G.proj.length;for(const p of G.planets)n+=p.sats.length;return n;}
 function addRock(x,y,vx,vy){if(G.rocks.length+G.proj.length>MAX_ROCKS*0.75)return null;const r=newRock(x,y,vx,vy);G.rocks.push(r);return r;}
 function freeRock(r,vx,vy,nocap,from){r.vx=vx;r.vy=vy;r.owner=null;r.nocap=nocap||0;r.noOwner=from||null;G.rocks.push(r);}
@@ -207,17 +209,17 @@ function addItem(){const p=randInZone(140);G.items.push({x:p.x,y:p.y,type:ITEM_K
 function makePlanet(name,pal,isPlayer,x,y){
   const skill=isPlayer?1:rand(0.4,1);
   const p={name,pal,isPlayer,x,y,vx:0,vy:0,dir:Math.atan2(-y,-x),aim:0,mass:START_MASS,maxMass:START_MASS,sats:[],alive:true,kills:0,
-    pw:{hole:0,shield:0,comet:0,split:0},outside:0,inv:0,flingCd:0,flash:0,pulse:0,lastHit:null,lastHitT:-99,wantFire:false,
+    pw:{hole:0,shield:0,comet:0,split:0},outside:0,inv:0,flingCd:0,bumpCd:0,hits:0,gainAcc:0,popMT:0,popAT:0,minMassT60:null,flash:0,pulse:0,lastHit:null,lastHitT:-99,wantFire:false,
     deco:(Math.random()*3)|0,spin:rand(0,TAU),tilt:rand(-0.5,0.5),orbA:[rand(0,TAU),rand(0,TAU),rand(0,TAU)],
-    ai:{skill,aggr:rand(0.25,0.85)*skill,interval:0.32-0.14*skill,timer:Math.random()*0.3,wander:null,mode:'gather',fireT:rand(1,3),fireWin:0,aimAng:0}};
+    ai:{skill,aggr:rand(0.25,0.85)*skill,interval:0.32-0.14*skill,timer:Math.random()*0.3,wander:null,mode:'gather',fireT:rand(1,3),burst:0,tgt:null,side:0}};
   p.aim=p.dir;derive(p);
-  for(let i=0;i<2;i++){const r=newRock(x,y);r.owner=p;p.sats.push(r);}
+  for(let i=0;i<3;i++){const r=newRock(x,y);r.owner=p;p.sats.push(r);}
   return p;
 }
 
 function newGame(demo){
   G={t:0,demo:!!demo,planets:[],dust:[],rocks:[],proj:[],items:[],zone:{},feed:[],floats:[],pops:[],particles:[],rings:[],tugs:[],
-    over:false,result:null,itemTimer:0,pruneTimer:0,aliveN:BOT_COUNT+1,shake:0,hurt:0};
+    over:false,result:null,stats:{giantShots:0,underdogEats:0,shotKills:0,eatKills:0},itemTimer:0,pruneTimer:0,aliveN:BOT_COUNT+1,shake:0,hurt:0};
   buildZone();zoneAt(0);
   const pts=[];
   function farPoint(){for(let tries=0;tries<300;tries++){const a=rand(0,TAU),r=Math.sqrt(Math.random())*R0*0.82;const p={x:Math.cos(a)*r,y:Math.sin(a)*r};if(pts.every(q=>Math.hypot(q.x-p.x,q.y-p.y)>420)){pts.push(p);return p;}}const p={x:rand(-R0*.6,R0*.6),y:rand(-R0*.6,R0*.6)};pts.push(p);return p;}
@@ -250,7 +252,7 @@ function kill(p,killer,reason){
   p.alive=false;p.deathT=G.t;p.killer=killer;p.reason=reason;
   releaseSats(p,320);
   if(reason!=='eat'){const n=Math.min(36,Math.max(8,Math.floor(p.mass/2.5))),v=Math.max(1,p.mass*0.7/n);
-    for(let i=0;i<n;i++){const a=rand(0,TAU),sp=rand(40,240);addDust(p.x+Math.cos(a)*p.r*0.5,p.y+Math.sin(a)*p.r*0.5,v,p.pal.main,Math.cos(a)*sp,Math.sin(a)*sp);}}
+    for(let i=0;i<n;i++){const a=rand(0,TAU),sp=rand(40,240);addDust(p.x+Math.cos(a)*p.r*0.5,p.y+Math.sin(a)*p.r*0.5,v,null,Math.cos(a)*sp,Math.sin(a)*sp);}}
   burst(p.x,p.y,p.pal.main,30,1.3);burst(p.x,p.y,'#ffffff',12,0.8);ring(p.x,p.y,p.r,p.r*4,p.pal.light,0.6);
   if(nearPlayer(p.x,p.y,700)||p.isPlayer)G.shake=Math.max(G.shake,p.isPlayer?16:10);
   const meK=killer&&killer.isPlayer;
@@ -263,64 +265,74 @@ function kill(p,killer,reason){
   if(p.isPlayer){p.rank=G.planets.filter(x=>x.alive).length+1;if(!G.demo)vib([60,40,120]);}
 }
 
-// ---------- 甩出 ----------
+// ---------- 核心规则 ----------
+// 吞噬：质量 ≥ 对方 1.3 倍 且 身体盖住对方中心
+function canEat(a,b){return a.mass>=b.mass*SWALLOW_RATIO;}
+function relation(me,o){if(G&&G.t<6)return 'neutral';return canEat(me,o)?'eat':(canEat(o,me)?'danger':'neutral');}
+function autoTarget(p){let best=null,bd=1e9;for(const o of G.planets){if(o===p||!o.alive)continue;const d=Math.hypot(o.x-p.x,o.y-p.y)-o.r;if(d<AIM_RANGE&&d<bd){bd=d;best=o;}}return best;}
 function leadAim(p,o){const dx=o.x-p.x,dy=o.y-p.y,d=Math.hypot(dx,dy),t=d/PROJ_SPEED;return Math.atan2(o.y+o.vy*t*0.9-p.y,o.x+o.vx*t*0.9-p.x);}
-function assistAim(p,a){let best=null,bs=1e9;
-  for(const o of G.planets){if(o===p||!o.alive)continue;const d=Math.hypot(o.x-p.x,o.y-p.y);if(d>680)continue;const ad=Math.abs(angDiff(a,Math.atan2(o.y-p.y,o.x-p.x)));if(ad>0.6)continue;const sc=ad*400+d;if(sc<bs){bs=sc;best=o;}}
-  return best?leadAim(p,best):a;}
+
+// ---------- 射击 ----------
 function launch(p,r,a){
-  const ca=Math.cos(a),sa=Math.sin(a),fw=Math.max(0,p.vx*ca+p.vy*sa);
-  r.x=p.x+ca*(p.r+6);r.y=p.y+sa*(p.r+6);r.px=r.x;r.py=r.y;
-  r.vx=ca*(PROJ_SPEED+fw*0.6);r.vy=sa*(PROJ_SPEED+fw*0.6);r.owner=p;r.ttl=PROJ_TTL;r.vr=rand(8,14);
+  const ca=Math.cos(a),sa=Math.sin(a),fw=p.vx*ca+p.vy*sa;
+  r.x=p.x+ca*(p.r+8);r.y=p.y+sa*(p.r+8);r.px=r.x;r.py=r.y;
+  const sp=PROJ_SPEED+Math.max(-120,fw*0.5);
+  r.vx=ca*sp;r.vy=sa*sp;r.owner=p;r.ttl=PROJ_TTL;r.vr=rand(8,14);
   G.proj.push(r);
 }
-function fling(p){
+function shoot(p,a){
   if(p.flingCd>0||!p.sats.length)return false;
-  p.flingCd=FLING_CD;
-  let a=p.aim;if(p.isPlayer&&!AUTO&&!G.demo)a=assistAim(p,a);
-  const n=Math.min(p.sats.length,3);
-  for(let i=0;i<n;i++){
-    const r=p.sats.pop(),aa=a+(i-(n-1)/2)*0.09;
-    launch(p,r,aa);
-    if(p.pw.split>0&&G.proj.length<160){for(const s of [-1,1]){const e=newRock(0,0);e.r=r.r*0.85;launch(p,e,aa+s*0.24);}}
-  }
-  for(let i=0;i<6;i++){const s=a+rand(-0.5,0.5),v=rand(80,220);G.particles.push({x:p.x+Math.cos(a)*p.r,y:p.y+Math.sin(a)*p.r,vx:Math.cos(s)*v,vy:Math.sin(s)*v,life:0.35,max:0.35,c:p.pal.light,r:rand(2,4)});}
-  p.vx-=Math.cos(a)*30;p.vy-=Math.sin(a)*30;
-  if(p.isPlayer&&!G.demo)vib(12);
+  p.flingCd=FIRE_CD;p.shots=(p.shots||0)+1;
+  // 选离发射方向最近的那颗卫星
+  let bi=0,bd=9;for(let i=0;i<p.sats.length;i++){const s=p.sats[i];const d=Math.abs(angDiff(a,Math.atan2(s.y-p.y,s.x-p.x)));if(d<bd){bd=d;bi=i;}}
+  const r=p.sats.splice(bi,1)[0];launch(p,r,a);
+  if(p.pw.split>0&&G.proj.length<160){for(const s of [-1,1]){const e=newRock(0,0);e.r=r.r*0.8;e.temp=true;launch(p,e,a+s*0.22);}}
+  for(let i=0;i<5;i++){const s=a+rand(-0.5,0.5),v=rand(80,220);G.particles.push({x:p.x+Math.cos(a)*p.r,y:p.y+Math.sin(a)*p.r,vx:Math.cos(s)*v,vy:Math.sin(s)*v,life:0.3,max:0.3,c:p.pal.light,r:rand(2,4)});}
+  p.vx-=Math.cos(a)*14;p.vy-=Math.sin(a)*14;
+  if(p.isPlayer&&!G.demo)vib(10);
   return true;
 }
+function shootAuto(p){const o=autoTarget(p);return shoot(p,o?leadAim(p,o):Math.atan2(p.vy,p.vx));}
 
 // ---------- AI ----------
 function botThink(p,alive){
   const ai=p.ai,z=G.zone;let tx=null,ty=null;ai.mode='gather';
-  // 目标圈：黑暗静止时提前往下一个圈靠
   const cx=z.hasNext?z.nx:z.x,cy=z.hasNext?z.ny:z.y,cr=z.hasNext?Math.min(z.r,z.nr+40):z.r;
   const dz=Math.hypot(p.x-z.x,p.y-z.y),dn=Math.hypot(p.x-cx,p.y-cy);
-  let threat=null,td=1e9,prey=null,pd=1e9,near=null,nd=1e9;
-  for(const o of alive){if(o===p)continue;const d=Math.hypot(o.x-p.x,o.y-p.y);
-    if(o.mass>=p.mass*SWALLOW_RATIO*0.95&&d<o.gR+p.r+220){if(d<td){td=d;threat=o;}}
-    else if(o.mass*SWALLOW_RATIO<=p.mass&&d<480){if(d<pd){pd=d;prey=o;}}
-    if(d<600&&d<nd){nd=d;near=o;}}
+  let threat=null,td=1e9,prey=null,pd=1e9;
+  for(const o of alive){if(o===p)continue;const d=Math.hypot(o.x-p.x,o.y-p.y),rel=relation(p,o);
+    if(rel==='danger'&&d<o.r+p.r+420){if(d<td){td=d;threat=o;}}
+    else if(rel==='eat'&&d<440){if(d<pd){pd=d;prey=o;}}}
+  const ammo=p.sats.length;
+  const zx=cx-p.x,zy=cy-p.y,zd=Math.hypot(zx,zy)||1;
   if(dz>z.r-70-p.r||dn>cr-60-p.r&&(z.left<12||z.shrinking)&&cr>60){tx=cx;ty=cy;ai.mode='zone';}
-  else if(threat&&Math.random()<0.55+0.45*ai.skill){
-    const ax=p.x-threat.x,ay=p.y-threat.y,d=Math.hypot(ax,ay)||1,zx=cx-p.x,zy=cy-p.y,zd=Math.hypot(zx,zy)||1;
-    tx=p.x+ax/d*300+zx/zd*120;ty=p.y+ay/d*300+zy/zd*120;ai.mode='flee';}
-  else if(prey&&G.t>10&&Math.random()<ai.aggr){
-    const t=pd/maxSpeed(p)*0.5;tx=prey.x+prey.vx*t;ty=prey.y+prey.vy*t;ai.mode='hunt';}
+  else if(threat){
+    const ax=p.x-threat.x,ay=p.y-threat.y,d=td||1,ux=ax/d,uy=ay/d;
+    if(ammo>=2&&ai.skill>0.5&&d>threat.r+p.r+120){
+      // 风筝：保持距离边打边退
+      const D=threat.r+330,side=ai.side||(ai.side=Math.random()<0.5?1:-1);
+      let mx,my;if(d<D){mx=ux*0.8-uy*side*0.6;my=uy*0.8+ux*side*0.6;}else{mx=-uy*side;my=ux*side;}
+      tx=p.x+mx*300+zx/zd*90;ty=p.y+my*300+zy/zd*90;ai.mode='kite';
+    }else{tx=p.x+ux*300+zx/zd*120;ty=p.y+uy*300+zy/zd*120;ai.mode='flee';}
+  }
+  else if(prey&&Math.random()<(0.2+ai.aggr*0.8)*clamp((G.t-6)/30,0,1)){const t=pd/maxSpeed(p)*0.5;tx=prey.x+prey.vx*t;ty=prey.y+prey.vy*t;ai.mode='hunt';}
   if(tx===null){
-    let bs=0;const room=p.sats.length<p.slots;
-    for(const it of G.items){const d=Math.hypot(it.x-p.x,it.y-p.y);if(d<600){const sc=9/(d+40);if(sc>bs){bs=sc;tx=it.x;ty=it.y;}}}
-    if(room)for(const r of G.rocks){const dx=r.x-p.x,dy=r.y-p.y;if(dx>500||dx<-500||dy>500||dy<-500)continue;const d=Math.sqrt(dx*dx+dy*dy);const ah=Math.cos(angDiff(p.dir,Math.atan2(dy,dx)));const sc=3.2*(1.3+ah)/(d+40);if(sc>bs){bs=sc;tx=r.x;ty=r.y;}}
+    let bs=0;const room=ammo<p.slots,ammoNeed=room?(ammo<2?5:2.4):0;
+    for(const it of G.items){const d=Math.hypot(it.x-p.x,it.y-p.y);if(d<600){const sc=8/(d+40);if(sc>bs){bs=sc;tx=it.x;ty=it.y;}}}
+    if(room)for(const r of G.rocks){const dx=r.x-p.x,dy=r.y-p.y;if(dx>500||dx<-500||dy>500||dy<-500)continue;const d=Math.sqrt(dx*dx+dy*dy);const ah=Math.cos(angDiff(p.dir,Math.atan2(dy,dx)));const sc=ammoNeed*(1.3+ah)/(d+40);if(sc>bs){bs=sc;tx=r.x;ty=r.y;}}
     const D=G.dust;for(let i=0;i<D.length;i+=2){const q=D[i];const dx=q.x-p.x,dy=q.y-p.y;if(dx>420||dx<-420||dy>420||dy<-420)continue;const d=Math.sqrt(dx*dx+dy*dy);const ah=Math.cos(angDiff(p.dir,Math.atan2(dy,dx)));const sc=q.v*(1.2+ah)/(d+40);if(sc>bs){bs=sc;tx=q.x;ty=q.y;}}
     if(tx!==null&&Math.hypot(tx-z.x,ty-z.y)>z.r-40){tx=null;}
     if(tx===null){if(!ai.wander||Math.random()<0.03||Math.hypot(ai.wander.x-p.x,ai.wander.y-p.y)<80)ai.wander=randInZone(200);tx=ai.wander.x;ty=ai.wander.y;}
   }
   p.dir=Math.atan2(ty-p.y,tx-p.x)+rand(-1,1)*(1-ai.skill)*0.2;
-  // 开火
-  const tgt=threat&&td<520?threat:(prey&&pd<480?prey:(near&&nd<420?near:null));
-  if(tgt&&p.sats.length&&G.t>6&&ai.fireT<=0){
-    const keep=ai.mode==='flee'?0:2;
-    if(p.sats.length>keep&&Math.random()<0.35+0.6*ai.skill){ai.aimAng=leadAim(p,tgt)+rand(-1,1)*(1-ai.skill)*0.22;ai.fireWin=0.12+0.25*ai.skill;ai.fireT=rand(1.4,3.2)/(0.5+ai.skill);}
+  // 开火：和玩家同规则（射程内任意方向）
+  if(ai.burst<=0&&ai.fireT<=0&&ammo&&G.t>8){
+    let tgt=null;
+    if(threat&&td-threat.r<AIM_RANGE)tgt=threat;
+    else if(prey&&pd-prey.r<AIM_RANGE*0.8)tgt=prey;
+    else{const o=autoTarget(p);if(o&&Math.hypot(o.x-p.x,o.y-p.y)-o.r<AIM_RANGE*0.75)tgt=o;}
+    if(tgt){const reserve=(ai.mode==='flee'||ai.mode==='kite')?0:1;const can=ammo-reserve;
+      if(can>0&&Math.random()<(0.4+0.6*ai.skill)*(tgt===threat?1:clamp((G.t-8)/25,0.2,1))){ai.tgt=tgt;ai.burst=Math.min(can,(ai.mode==='flee'||ai.mode==='kite')?3:1+((Math.random()*2.5*ai.skill)|0));ai.fireT=rand(1.0,2.6)/(0.5+ai.skill);}}
   }
 }
 
@@ -329,12 +341,20 @@ function update(dt){
   if(!G)return;
   G.t+=dt;zoneAt(G.t);
   const z=G.zone,alive=G.planets.filter(p=>p.alive),PL=G.player;
-  // 控制
+  // 控制 + 开火
   for(const p of alive){
-    if(p.isPlayer&&!AUTO&&!G.demo){p.dir=input.ang;p.aim=input.ang;p.wantFire=input.btnFling||input.keyFling||input.mouseFling||input.flingQ;}
-    else{const ai=p.ai;ai.timer-=dt;ai.fireT-=dt;if(ai.timer<=0){ai.timer=ai.interval*rand(0.8,1.2);botThink(p,alive);}
-      ai.fireWin-=dt;p.wantFire=ai.fireWin>0;p.aim=p.wantFire?ai.aimAng:p.dir;}
+    if(p.isPlayer&&!AUTO&&!G.demo){
+      p.dir=input.ang;
+      const F=input.fire;
+      if(input.manualQ!==null){if(shoot(p,input.manualQ)||!p.sats.length)input.manualQ=null;}
+      else if(input.tapQ){if(shootAuto(p)||!p.sats.length)input.tapQ=false;}
+      else{const now=performance.now();if((F&&!F.drag&&now-F.t0>220)||(input.keyDownT&&now-input.keyDownT>220)||(input.mouseDownT&&now-input.mouseDownT>220))shootAuto(p);}
+    }else{
+      const ai=p.ai;ai.timer-=dt;ai.fireT-=dt;if(ai.timer<=0){ai.timer=ai.interval*rand(0.8,1.2);botThink(p,alive);}
+      if(ai.burst>0&&p.flingCd<=0){const t=ai.tgt;if(t&&t.alive&&p.sats.length&&Math.hypot(t.x-p.x,t.y-p.y)-t.r<AIM_RANGE){if(shoot(p,leadAim(p,t)+rand(-1,1)*(1-ai.skill)*0.2))ai.burst--;}else ai.burst=0;}
+    }
   }
+  G.autoT=PL.alive?autoTarget(PL):null;
   // 移动（惯性）
   for(const p of alive){
     derive(p);
@@ -344,103 +364,83 @@ function update(dt){
     const d=Math.hypot(p.x,p.y);if(d>WORLD_R-p.r){p.x*=(WORLD_R-p.r)/d;p.y*=(WORLD_R-p.r)/d;}
     p.spin+=dt*(0.25+0.8/(1+p.mass/60));
     for(const kk in p.pw)if(p.pw[kk]>0)p.pw[kk]=Math.max(0,p.pw[kk]-dt);
-    if(p.inv>0)p.inv-=dt;if(p.flingCd>0)p.flingCd-=dt;if(p.flash>0)p.flash-=dt;if(p.pulse>0)p.pulse=Math.max(0,p.pulse-dt*3);
-    if(p.mass>150)p.mass-=(p.mass-150)*0.015*dt;
+    if(p.inv>0)p.inv-=dt;if(p.flingCd>0)p.flingCd-=dt;if(p.bumpCd>0)p.bumpCd-=dt;if(p.flash>0)p.flash-=dt;if(p.pulse>0)p.pulse=Math.max(0,p.pulse-dt*3);
+    if(p.mass>100)p.mass-=(p.mass-100)*0.03*dt;
     p.mass=Math.min(MAX_MASS,p.mass);if(p.mass>p.maxMass)p.maxMass=p.mass;
+    // 卫星超出上限（变小了）就甩掉多余的
+    while(p.sats.length>p.slots){const s=p.sats.pop();const a=rand(0,TAU);freeRock(s,Math.cos(a)*200,Math.sin(a)*200,0.6,p);}
     if(p.pw.comet>0&&Math.random()<0.8){const a=Math.atan2(-p.vy,-p.vx)+rand(-0.35,0.35);G.particles.push({x:p.x+Math.cos(a)*p.r*0.9,y:p.y+Math.sin(a)*p.r*0.9,vx:Math.cos(a)*rand(60,160),vy:Math.sin(a)*rand(60,160),life:0.5,max:0.5,c:Math.random()<0.5?'#ffd166':'#ff9f1c',r:rand(2.5,5)});}
+    if(p.isPlayer&&!G.demo){p.popMT-=dt;p.popAT-=dt;if(p.gainAcc>=1&&p.popMT<=0){addPop(p.x+rand(-8,8),p.y-p.r-22,'+'+Math.round(p.gainAcc)+' 质量',DUST_C);p.gainAcc=0;p.popMT=0.6;}}
   }
-  // 卫星轨道
+  // 卫星轨道（两层，每层 6 颗）
   for(const p of alive){
-    const n=p.sats.length;p.orbA[0]+=dt*2.2;p.orbA[1]-=dt*1.6;p.orbA[2]+=dt*1.15;
-    const caps=[6,10,14];let idx=0;
-    for(let ringI=0;ringI<3&&idx<n;ringI++){const cnt=Math.min(caps[ringI],n-idx),R=p.r+16+ringI*15;
+    const n=p.sats.length;p.orbA[0]+=dt*2.2;p.orbA[1]-=dt*1.6;
+    let idx=0;
+    for(let ringI=0;ringI<2&&idx<n;ringI++){const cnt=Math.min(6,n-idx),R=p.r+18+ringI*18;
       for(let j=0;j<cnt;j++,idx++){const s=p.sats[idx],a=p.orbA[ringI]+j*TAU/cnt;const tx=p.x+Math.cos(a)*R,ty=p.y+Math.sin(a)*R;
         s.x+=p.vx*dt;s.y+=p.vy*dt;const kk=Math.min(1,dt*7);s.x+=(tx-s.x)*kk;s.y+=(ty-s.y)*kk;s.rot+=s.vr*dt*0.5;}}
-    for(;idx<n;idx++){const s=p.sats[idx];s.x=p.x;s.y=p.y;}
   }
-  // 开火
-  for(const p of alive){if(p.wantFire&&fling(p)&&p.isPlayer)input.flingQ=false;}
-  if(!PL.alive||!PL.sats.length)input.flingQ=false;
-  // 自由陨石：被引力抓取
+  // 陨石：只当弹药。弹药没满才会被吸过来
   const R=G.rocks;
   for(let i=R.length-1;i>=0;i--){
     const r=R[i];const damp=Math.exp(-dt*1.6);r.vx*=damp;r.vy*=damp;r.x+=r.vx*dt;r.y+=r.vy*dt;r.rot+=r.vr*dt;if(r.nocap>0)r.nocap-=dt;
-    let taken=false;
     for(const p of alive){
+      if(p.sats.length>=p.slots)continue;
       const dx=p.x-r.x,dy=p.y-r.y,g=p.gR;if(dx>g||dx<-g||dy>g||dy<-g)continue;
       if(r.nocap>0&&(r.noOwner===p||r.noOwner===null))continue;
       const d2=dx*dx+dy*dy;if(d2>g*g)continue;const d=Math.sqrt(d2)||1;
-      const room=p.sats.length<p.slots;
-      const pull=(room?700:420)*(1-d/g)+160;r.vx+=dx/d*pull*dt*(p.pw.hole>0?1.8:1);r.vy+=dy/d*pull*dt*(p.pw.hole>0?1.8:1);
-      if(d<p.r+18){
-        if(room){r.owner=p;p.sats.push(r);if(p.isPlayer&&!G.demo)vib(6);}
-        else{p.mass+=1.5;p.pulse=1;}
-        R[i]=R[R.length-1];R.pop();taken=true;break;
-      }
+      const pull=(700*(1-d/g)+180)*(p.pw.hole>0?1.8:1);r.vx+=dx/d*pull*dt;r.vy+=dy/d*pull*dt;
+      if(d<p.r+20){r.owner=p;r.temp=false;p.sats.push(r);R[i]=R[R.length-1];R.pop();
+        if(p.isPlayer&&!G.demo){vib(6);if(p.popAT<=0){addPop(r.x,r.y-12,'+弹药','#ffcf8a');p.popAT=0.3;}}}
       break;
     }
-    if(!taken&&(Math.abs(r.x)>WORLD_R||Math.abs(r.y)>WORLD_R)){R[i]=R[R.length-1];R.pop();}
   }
-  // 星尘：吸附吸收
+  // 星尘：只加质量
   const D=G.dust;
   for(let i=D.length-1;i>=0;i--){
     const q=D[i];
+    if(q.bt>0){q.bt-=dt;if(q.bt<=0)q.ban=null;}
     if(q.vx||q.vy){q.x+=q.vx*dt;q.y+=q.vy*dt;const dd=Math.exp(-dt*3);q.vx*=dd;q.vy*=dd;if(Math.abs(q.vx)+Math.abs(q.vy)<3){q.vx=q.vy=0;}}
     for(const p of alive){
+      if(p===q.ban)continue;
       const dx=p.x-q.x,dy=p.y-q.y,g=p.gR*0.85;if(dx>g||dx<-g||dy>g||dy<-g)continue;
       const d2=dx*dx+dy*dy;if(d2>g*g)continue;
-      if(d2<p.r*p.r){p.mass+=q.v;p.pulse=Math.min(1,p.pulse+0.25);D[i]=D[D.length-1];D.pop();break;}
+      if(d2<p.r*p.r){p.mass+=q.v;p.gainAcc+=q.v;p.pulse=Math.min(1,p.pulse+0.25);D[i]=D[D.length-1];D.pop();break;}
       const d=Math.sqrt(d2),s=(260+420*(1-d/g))*dt*(p.pw.hole>0?1.6:1);q.x+=dx/d*Math.min(s,d);q.y+=dy/d*Math.min(s,d);break;
     }
   }
-  // 弹幕
+  // 黑洞核心：唯一能抢别人卫星的方式
+  G.tugs.length=0;
+  for(const h of alive){if(h.pw.hole<=0)continue;let act=null;
+    for(const v of alive){if(v===h||!v.sats.length||v.pw.shield>0)continue;if(Math.hypot(v.x-h.x,v.y-h.y)>h.gR+v.r+40)continue;
+      for(let k=v.sats.length-1;k>=0;k--){const s=v.sats[k];const ex=s.x-h.x,ey=s.y-h.y;if(ex*ex+ey*ey>h.gR*h.gR)continue;act=v;
+        if(Math.random()<2.2*dt){v.sats.splice(k,1);if(h.sats.length<h.slots){s.owner=h;h.sats.push(s);}else freeRock(s,(h.x-s.x)*0.5,(h.y-s.y)*0.5,0.4,v);
+          burst(s.x,s.y,'#b388ff',5,0.5);
+          if(!G.demo&&G.t-(G.popT||0)>0.7){if(h.isPlayer){G.popT=G.t;addPop(h.x,h.y-h.r-24,'黑洞抢到弹药！','#d1b3ff');}else if(v.isPlayer){G.popT=G.t;addPop(v.x,v.y-v.r-24,'弹药被黑洞抢走！','#ff8fab');}}}}
+      if(act===v)G.tugs.push([h,v]);}}
+  // 弹幕：只打星球，打中掉质量（变成星尘洒出来）
   const PR=G.proj;
   for(let i=PR.length-1;i>=0;i--){
     const r=PR[i];r.px=r.x;r.py=r.y;r.x+=r.vx*dt;r.y+=r.vy*dt;r.rot+=r.vr*dt;r.ttl-=dt;
     let done=false;
     for(const q of alive){
       if(q===r.owner||!q.alive)continue;
-      const dx=q.x-r.x,dy=q.y-r.y,reach=q.r+60;if(dx>reach||dx<-reach||dy>reach||dy<-reach)continue;
-      const d2=dx*dx+dy*dy,hr=q.r+r.r;
-      if(d2<hr*hr){hitPlanet(q,r);done=true;break;}
-      // 打中对方的卫星：一起被撞飞（可以抢）
-      for(let j=q.sats.length-1;j>=0;j--){const s=q.sats[j];const ex=s.x-r.x,ey=s.y-r.y,sr=s.r+r.r+2;
-        if(ex*ex+ey*ey<sr*sr){q.sats.splice(j,1);const a=Math.atan2(r.vy,r.vx)+rand(-0.7,0.7);freeRock(s,Math.cos(a)*320,Math.sin(a)*320,0.6,q);
-          burst(s.x,s.y,'#ffffff',6,0.7);freeRock(r,-r.vx*0.15+rand(-60,60),-r.vy*0.15+rand(-60,60),0.3,null);done=true;break;}}
-      if(done)break;
+      const dx=q.x-r.x,dy=q.y-r.y,hr=q.r+r.r;if(dx>hr||dx<-hr||dy>hr||dy<-hr)continue;
+      if(dx*dx+dy*dy<hr*hr){hitPlanet(q,r);done=true;break;}
     }
     if(done){PR[i]=PR[PR.length-1];PR.pop();continue;}
-    if(r.ttl<=0){PR[i]=PR[PR.length-1];PR.pop();freeRock(r,r.vx*0.25,r.vy*0.25,0.4,r.owner);r.owner=null;}
+    if(r.ttl<=0){PR[i]=PR[PR.length-1];PR.pop();if(r.temp)continue;freeRock(r,r.vx*0.2,r.vy*0.2,0.4,r.owner);}
   }
-  // 星球之间：吞噬 / 碰撞 / 引力拔河
-  G.tugs.length=0;
+  // 星球之间：吞噬 or 对撞（只有这两种）
   for(let i=0;i<alive.length;i++)for(let j=i+1;j<alive.length;j++){
     const a=alive[i],b=alive[j];if(!a.alive||!b.alive)continue;
     const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||0.01;
+    if(d>a.r+b.r)continue;
     const big=a.mass>=b.mass?a:b,sm=big===a?b:a;
-    if(d>big.gR+sm.gR+40)continue;
-    const ratio=big.mass/sm.mass;
-    if(ratio>=SWALLOW_RATIO&&d<big.r-sm.r*0.25){
-      if(sm.pw.shield>0||sm.inv>0){if(sm.pw.shield>0){sm.pw.shield=0;sm.inv=1;burst(sm.x,sm.y,'#8fdcff',16);if(sm.isPlayer&&!G.demo)addFloat('护盾挡住了吞噬！','#8fdcff');}
-        const nx=(sm.x-big.x)/d,ny=(sm.y-big.y)/d;sm.vx=nx*520;sm.vy=ny*520;sm.x=big.x+nx*(big.r+sm.r+2);sm.y=big.y+ny*(big.r+sm.r+2);}
-      else swallow(big,sm);
-      continue;
-    }
-    if(ratio<SWALLOW_RATIO&&d<a.r+b.r||ratio>=SWALLOW_RATIO&&d<big.r+sm.r&&(sm.pw.shield>0||sm.inv>0)){
-      const nx=dx/d,ny=dy/d,ov=(a.r+b.r-d);const wa=b.mass/(a.mass+b.mass),wb=1-wa;
-      a.x-=nx*ov*wa;a.y-=ny*ov*wa;b.x+=nx*ov*wb;b.y+=ny*ov*wb;
-      const rv=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;if(rv<0){const imp=-rv*1.6+120;a.vx-=nx*imp*wa;a.vy-=ny*imp*wa;b.vx+=nx*imp*wb;b.vy+=ny*imp*wb;
-        burst(a.x+nx*a.r,a.y+ny*a.r,'#ffffff',8,0.6);if(nearPlayer(a.x,a.y,30+a.r+b.r))G.shake=Math.max(G.shake,5);}
-    }
-    // 拔河：大的引力把小的卫星抢走（黑洞核心无视体型）
-    const tugger=a.pw.hole>0&&b.pw.hole<=0?a:(b.pw.hole>0&&a.pw.hole<=0?b:(ratio>=STEAL_RATIO?big:null));
-    if(tugger){const vic=tugger===a?b:a;if(!vic.sats.length||vic.pw.shield>0)continue;
-      const g=tugger.gR;let act=false;const rate=(tugger.pw.hole>0?2.2:0.9*Math.min(2,ratio-1))*dt;
-      for(let k=vic.sats.length-1;k>=0;k--){const s=vic.sats[k];const ex=s.x-tugger.x,ey=s.y-tugger.y;if(ex*ex+ey*ey>g*g)continue;act=true;
-        if(Math.random()<rate){vic.sats.splice(k,1);if(tugger.sats.length<tugger.slots){s.owner=tugger;tugger.sats.push(s);}else freeRock(s,(tugger.x-s.x)*0.5,(tugger.y-s.y)*0.5,0.3,vic);
-          burst(s.x,s.y,tugger.pal.light,5,0.5);
-          if(!G.demo&&G.t-(G.popT||0)>0.7){if(tugger.isPlayer){G.popT=G.t;addPop(tugger.x,tugger.y-tugger.r-24,'抢到卫星！','#ffe066');}else if(vic.isPlayer){G.popT=G.t;addPop(vic.x,vic.y-vic.r-24,'卫星被抢！','#ff8fab');}}}}
-      if(act)G.tugs.push([tugger,vic]);}
+    const safe=G.t<6;
+    if(canEat(big,sm)&&!safe&&!(sm.pw.shield>0||sm.inv>0)){if(d<big.r)swallow(big,sm);continue;}
+    if(canEat(big,sm)&&sm.pw.shield>0){sm.pw.shield=0;sm.inv=1;burst(sm.x,sm.y,'#8fdcff',16);if(sm.isPlayer&&!G.demo)addFloat('护盾挡住了吞噬！','#8fdcff');}
+    bump(a,b,dx/d,dy/d,a.r+b.r-d,!canEat(big,sm));
   }
   // 道具
   for(let i=G.items.length-1;i>=0;i--){
@@ -468,7 +468,7 @@ function update(dt){
   const frac=Math.max(0.12,z.r/R0);
   const dTarget=150+550*frac;G.dustAcc=(G.dustAcc||0)+dt*36;
   while(G.dustAcc>=1){G.dustAcc-=1;if(G.dust.length<dTarget&&z.r>30){const p=randInZone(15);addDust(p.x,p.y,Math.random()<0.12?2:1);}}
-  const rTarget=40+120*frac;G.rockAcc=(G.rockAcc||0)+dt*4;
+  const rTarget=50+130*frac;G.rockAcc=(G.rockAcc||0)+dt*7;
   while(G.rockAcc>=1){G.rockAcc-=1;if(G.rocks.length<rTarget&&z.r>40){const p=randInZone(30);addRock(p.x,p.y,rand(-20,20),rand(-20,20));}}
   G.itemTimer-=dt;
   if(G.itemTimer<=0){G.itemTimer=1.8;if(G.items.length<ITEM_TARGET*Math.max(0.35,frac)&&z.r>100)addItem();}
@@ -485,32 +485,45 @@ function update(dt){
   if(G.demo){if(aliveN<=1||G.t>170)newGame(true);return;}
   if(!G.over){if(!PL.alive)endGame(false);else if(aliveN===1)endGame(true);}
 }
+// 对撞：弹性弹开，双方各掉 2 颗卫星（不掉质量）
+function bump(a,b,nx,ny,ov,loseSats){
+  const wa=b.mass/(a.mass+b.mass),wb=1-wa;
+  a.x-=nx*ov*wa;a.y-=ny*ov*wa;b.x+=nx*ov*wb;b.y+=ny*ov*wb;
+  const rv=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
+  if(rv<0){const imp=-rv*1.8+160;a.vx-=nx*imp*wa*1.2;a.vy-=ny*imp*wa*1.2;b.vx+=nx*imp*wb*1.2;b.vy+=ny*imp*wb*1.2;}
+  if(loseSats&&a.bumpCd<=0&&b.bumpCd<=0){
+    for(const [p,s] of [[a,-1],[b,1]]){p.bumpCd=0.6;const n=Math.min(2,p.sats.length);
+      for(let k=0;k<n;k++){const r=p.sats.pop();const ang=Math.atan2(ny*s,nx*s)+rand(-1.2,1.2);freeRock(r,Math.cos(ang)*300+p.vx*0.3,Math.sin(ang)*300+p.vy*0.3,0.7,p);}
+      if(p.isPlayer&&!G.demo&&n)addPop(p.x,p.y-p.r-24,'撞掉 '+n+' 颗弹药','#ffcf8a');}
+    const cx=a.x+nx*a.r,cy=a.y+ny*a.r;burst(cx,cy,'#ffffff',12,0.8);ring(cx,cy,6,40,'#ffffff',0.3);
+    if(nearPlayer(cx,cy,a.r+b.r+40))G.shake=Math.max(G.shake,7);
+  }
+}
 function hitPlanet(q,r){
   const o=r.owner;
-  if(q.pw.shield>0){const nx=(r.x-q.x),ny=(r.y-q.y),d=Math.hypot(nx,ny)||1;freeRock(r,nx/d*260,ny/d*260,0.4,null);burst(r.x,r.y,'#8fdcff',8,0.6);return;}
-  const dmg=1.6+q.mass*0.04+r.r*0.12;
-  q.mass-=dmg;q.flash=0.22;q.vx+=r.vx*0.12;q.vy+=r.vy*0.12;
-  if(o&&o.alive){q.lastHit=o;q.lastHitT=G.t;}
-  const n=Math.min(6,1+Math.floor(dmg/5)),v=dmg*0.55/n,ba=Math.atan2(r.vy,r.vx);
-  for(let i=0;i<n;i++){const a=ba+rand(-1.1,1.1),sp=rand(120,260);addDust(r.x,r.y,v,q.pal.main,Math.cos(a)*sp,Math.sin(a)*sp);}
-  const knock=Math.min(q.sats.length,dmg>14?2:1);
-  for(let k=0;k<knock;k++){const s=q.sats.pop();const a=ba+rand(-1,1);freeRock(s,Math.cos(a)*300,Math.sin(a)*300,0.6,q);}
+  if(q.pw.shield>0){burst(r.x,r.y,'#8fdcff',8,0.6);if(!r.temp){const nx=(r.x-q.x),ny=(r.y-q.y),d=Math.hypot(nx,ny)||1;freeRock(r,nx/d*260,ny/d*260,0.4,null);}return;}
+  const dmg=Math.min(q.mass-1,3.5+q.mass*0.09);
+  q.mass-=dmg;q.flash=0.22;q.hits++;q.vx+=r.vx*0.1;q.vy+=r.vy*0.1;
+  if(o&&o.alive){q.lastHit=o;q.lastHitT=G.t;if(o.mass<q.mass)G.stats.giantShots++;}
+  // 掉的质量 80% 变成星尘洒出来（谁都能吃）
+  const n=Math.min(8,2+Math.floor(dmg/4)),v=dmg*0.8/n,ba=Math.atan2(-r.vy,-r.vx);
+  for(let i=0;i<n;i++){const a=ba+rand(-1.3,1.3),sp=rand(200,380);addDust(q.x+Math.cos(a)*q.r,q.y+Math.sin(a)*q.r,v,null,Math.cos(a)*sp,Math.sin(a)*sp,q);}
   burst(r.x,r.y,q.pal.light,10,0.9);burst(r.x,r.y,'#ffffff',5,0.6);
-  freeRock(r,-r.vx*0.12+rand(-50,50),-r.vy*0.12+rand(-50,50),0.35,null);
   if(!G.demo){
-    if(o&&o.isPlayer){addPop(q.x+rand(-10,10),q.y-q.r-10,'-'+Math.round(dmg),'#ffe066');vib(10);}
-    if(q.isPlayer){G.shake=Math.max(G.shake,7);G.hurt=0.5;addPop(q.x,q.y-q.r-10,'-'+Math.round(dmg),'#ff6b8a');vib(25);}
+    if(o&&o.isPlayer){addPop(q.x+rand(-10,10),q.y-q.r-12,'-'+Math.round(dmg),'#ffe066');vib(10);}
+    if(q.isPlayer){G.shake=Math.max(G.shake,7);G.hurt=0.5;addPop(q.x,q.y-q.r-12,'-'+Math.round(dmg),'#ff6b8a');vib(25);}
   }
-  if(q.mass<KILL_MASS)kill(q,o&&o.alive?o:null,'shot');
+  if(q.mass<KILL_MASS){G.stats.shotKills++;if(o&&q.maxMass>o.mass)G.stats.giantKills=(G.stats.giantKills||0)+1;kill(q,o&&o.alive?o:null,'shot');}
 }
 function swallow(big,sm){
+  if(sm.maxMass>big.mass)G.stats.underdogEats++;
+  G.stats.eatKills++;
   const gain=sm.mass*0.5;
-  // 卫星：能装多少装多少，剩下的飞散
   const sats=sm.sats.splice(0);for(const s of sats){if(big.sats.length<big.slots){s.owner=big;big.sats.push(s);}else{const a=rand(0,TAU);freeRock(s,Math.cos(a)*250,Math.sin(a)*250,0.5,null);}}
   big.mass=Math.min(MAX_MASS,big.mass+gain);big.pulse=1;if(big.mass>big.maxMass)big.maxMass=big.mass;
   kill(sm,big,'eat');
   ring(big.x,big.y,big.r,big.r*3.2,big.pal.light,0.5);
-  if(big.isPlayer&&!G.demo){addPop(big.x,big.y-big.r-16,'+'+Math.round(gain),'#7bf1a8');G.shake=Math.max(G.shake,12);vib([30,30,60]);}
+  if(big.isPlayer&&!G.demo){addPop(big.x,big.y-big.r-16,'+'+Math.round(gain)+' 质量',DUST_C);G.shake=Math.max(G.shake,12);vib([30,30,60]);}
 }
 
 // ---------- 结束 ----------
@@ -551,20 +564,20 @@ function startGame(){
   goLandscape();
   $('start').classList.add('hidden');$('end').classList.add('hidden');
   newGame(false);state='play';resize();
-  input.btnFling=input.mouseFling=input.keyFling=input.flingQ=false;input.joy=null;fb.classList.remove('on');
+  input.fire=null;input.tapQ=false;input.manualQ=null;input.mouseDownT=input.keyDownT=0;input.joy=null;fb.classList.remove('on');
   if(TOUCH)$('fling').classList.remove('hidden');
 }
 $('startBtn').addEventListener('click',startGame);
 $('againBtn').addEventListener('click',startGame);
 $('ctrlTip').innerHTML=TOUCH
-  ?'<b>操作：</b><b>左手</b>在屏幕左半边任意位置按住拖动 = 摇杆；<b>右手</b>点右下角<b>「甩出」</b>把卫星砸出去（按住连发，会自动瞄准前方敌人）。'
-  :'<b>操作：</b>鼠标指向哪里星球就飞向哪里，<b>点左键 / 空格</b>甩出卫星（按住连发）；也可用 WASD / 方向键移动。';
+  ?'<b>操作：</b><b>左手</b>在左半屏按住拖动 = 移动；<b>右手</b>点<b>「甩出」</b>= 自动瞄准最近的敌人（身后也能打），按住连发；从按钮上<b>拖动</b>可手动瞄准，松手发射。'
+  :'<b>操作：</b>鼠标指向哪里星球就飞向哪里；<b>点左键 / 空格</b>甩出陨石，自动瞄准最近的敌人（按住连发）；也可用 WASD / 方向键移动。';
 $('best1').textContent=bestText();
 
 // ---------- 输入 ----------
 function aimFromMouse(){if(!G||!G.player.alive)return;const p=G.player;const sx=W/2+(p.x-cam.x)*cam.z,sy=H/2+(p.y-cam.y)*cam.z;const dx=input.mx-sx,dy=input.my-sy;if(dx*dx+dy*dy>64)input.ang=Math.atan2(dy,dx);}
 cv.addEventListener('pointerdown',e=>{
-  if(e.pointerType==='mouse'){if(e.button===0&&state==='play'){input.mouseFling=true;input.flingQ=true;}input.mouseAim=true;input.mx=e.clientX;input.my=e.clientY;}
+  if(e.pointerType==='mouse'){if(e.button===0&&state==='play'){input.tapQ=true;input.mouseDownT=performance.now();}input.mouseAim=true;input.mx=e.clientX;input.my=e.clientY;}
   else if(!PORTRAIT&&(!input.joy||(e.clientX<W/2&&input.joy.right))){input.joy={id:e.pointerId,ox:e.clientX,oy:e.clientY,x:e.clientX,y:e.clientY,right:e.clientX>=W/2};}
   e.preventDefault();
 });
@@ -576,24 +589,29 @@ window.addEventListener('pointermove',e=>{
     if(d>JOY_R){j.ox=j.x-dx/d*JOY_R;j.oy=j.y-dy/d*JOY_R;}
   }
 },{passive:true});
-function pUp(e){if(e.pointerType==='mouse')input.mouseFling=false;else if(input.joy&&e.pointerId===input.joy.id)input.joy=null;}
+function pUp(e){if(e.pointerType==='mouse')input.mouseDownT=0;else if(input.joy&&e.pointerId===input.joy.id)input.joy=null;}
 window.addEventListener('pointerup',pUp);window.addEventListener('pointercancel',pUp);
 const fb=$('fling');
 document.addEventListener('touchmove',e=>{if(!e.target.closest||!e.target.closest('.card'))e.preventDefault();},{passive:false});
 document.addEventListener('touchstart',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
 let lastTouchEnd=0;document.addEventListener('touchend',e=>{const n=Date.now();if(n-lastTouchEnd<300&&!(e.target.closest&&e.target.closest('button')))e.preventDefault();lastTouchEnd=n;},{passive:false});
-fb.addEventListener('pointerdown',e=>{input.btnFling=true;input.flingQ=true;fb.classList.add('on');e.preventDefault();e.stopPropagation();});
-const fUp=()=>{input.btnFling=false;fb.classList.remove('on');};
-fb.addEventListener('pointerup',fUp);fb.addEventListener('pointercancel',fUp);fb.addEventListener('pointerleave',fUp);
+// 甩出按钮：点 = 自动瞄准；按住 = 连发；拖动 = 手动瞄准，松手发射
+const AIM_DRAG=16;
+fb.addEventListener('pointerdown',e=>{if(state!=='play')return;input.fire={id:e.pointerId,ox:e.clientX,oy:e.clientY,t0:performance.now(),drag:false,ang:0};fb.classList.add('on');try{fb.setPointerCapture(e.pointerId);}catch(_){}e.preventDefault();e.stopPropagation();});
+fb.addEventListener('pointermove',e=>{const F=input.fire;if(!F||e.pointerId!==F.id)return;const dx=e.clientX-F.ox,dy=e.clientY-F.oy;if(Math.hypot(dx,dy)>AIM_DRAG){F.drag=true;F.ang=Math.atan2(dy,dx);}});
+const fUp=e=>{const F=input.fire;if(!F||(e&&e.pointerId!==F.id))return;
+  if(e&&e.type==='pointerup'){if(F.drag)input.manualQ=F.ang;else if(performance.now()-F.t0<=220)input.tapQ=true;}
+  input.fire=null;fb.classList.remove('on');};
+fb.addEventListener('pointerup',fUp);fb.addEventListener('pointercancel',fUp);
 function keyAim(){let x=0,y=0;const k=input.keys;if(k.ArrowLeft||k.KeyA)x--;if(k.ArrowRight||k.KeyD)x++;if(k.ArrowUp||k.KeyW)y--;if(k.ArrowDown||k.KeyS)y++;if(x||y){input.ang=Math.atan2(y,x);input.mouseAim=false;}}
-window.addEventListener('keydown',e=>{input.keys[e.code]=true;
+window.addEventListener('keydown',e=>{const rep=input.keys[e.code];input.keys[e.code]=true;
   if((e.code==='Enter'||e.code==='Space')&&state!=='play'){const sv=!$('start').classList.contains('hidden'),ev=!$('end').classList.contains('hidden');if(sv||ev){startGame();e.preventDefault();return;}}
-  if(e.code==='Space'||e.code==='KeyJ'){if(!input.keyFling)input.flingQ=true;input.keyFling=true;e.preventDefault();}
+  if(e.code==='Space'||e.code==='KeyJ'){if(!rep&&state==='play'){input.tapQ=true;input.keyDownT=performance.now();}e.preventDefault();}
   keyAim();});
-window.addEventListener('keyup',e=>{input.keys[e.code]=false;if(e.code==='Space'||e.code==='KeyJ')input.keyFling=false;keyAim();});
+window.addEventListener('keyup',e=>{input.keys[e.code]=false;if(e.code==='Space'||e.code==='KeyJ')input.keyDownT=0;keyAim();});
 document.addEventListener('gesturestart',e=>e.preventDefault());
 document.addEventListener('contextmenu',e=>e.preventDefault());
-window.addEventListener('blur',()=>{input.keys={};input.keyFling=input.mouseFling=input.btnFling=false;});
+window.addEventListener('blur',()=>{input.keys={};input.keyDownT=input.mouseDownT=0;input.fire=null;});
 
 // ---------- 绘制 ----------
 function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
@@ -641,7 +659,14 @@ function drawPlanetFX(p){
   if(p.outside>0&&Math.floor(G.t*8)%2===0){ctx.strokeStyle='rgba(200,110,255,0.95)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,r+5,0,TAU);ctx.stroke();}
   const fs=Math.max(12,13/cam.z);ctx.font='bold '+fs+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
   const label=p.isPlayer?'你':p.name,ly=y-r-(p.deco===2?r*0.25:0)-8;
+  // 吃 / 危险 标识（相对玩家）
+  const pl=G.player;let rel=null;
+  if(!p.isPlayer&&pl.alive&&!G.demo){rel=relation(pl,p);const col=rel==='eat'?'#4dff88':rel==='danger'?'#ff4d6d':'rgba(255,255,255,0.55)';
+    ctx.strokeStyle=col;ctx.lineWidth=(rel==='neutral'?1.5:3)/Math.max(0.6,cam.z);if(rel==='danger')ctx.globalAlpha=0.65+0.35*Math.sin(G.t*10);
+    ctx.beginPath();ctx.arc(x,y,r+4,0,TAU);ctx.stroke();ctx.globalAlpha=1;}
   ctx.lineWidth=3/cam.z;ctx.strokeStyle='rgba(0,0,0,0.5)';ctx.strokeText(label,x,ly);ctx.fillStyle=p.isPlayer?'#ffe066':'rgba(255,255,255,0.9)';ctx.fillText(label,x,ly);
+  if(rel==='eat'||rel==='danger'){const tg=rel==='eat'?'可吃':'危险',fs2=Math.max(11,12/cam.z);ctx.font='bold '+fs2+'px sans-serif';const tw=ctx.measureText(tg).width+10/cam.z,th=fs2+4/cam.z,ty=y+r+8+th;
+    roundRect(x-tw/2,ty-th,tw,th,th/2);ctx.fillStyle=rel==='eat'?'rgba(30,170,80,0.9)':'rgba(220,40,70,0.92)';ctx.fill();ctx.fillStyle='#fff';ctx.textBaseline='middle';ctx.fillText(tg,x,ty-th/2+0.5);ctx.textBaseline='bottom';}
 }
 function draw(){
   ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -660,7 +685,7 @@ function draw(){
   // 下一个安全圈
   if(zone.hasNext&&zone.nr>0){ctx.strokeStyle='rgba(255,255,255,0.35)';ctx.lineWidth=3/z;ctx.setLineDash([16/z,14/z]);ctx.beginPath();ctx.arc(zone.nx,zone.ny,zone.nr,0,TAU);ctx.stroke();ctx.setLineDash([]);}
   // 星尘
-  for(const q of G.dust){if(!inV(q.x,q.y,20))continue;const s=(7+q.v*2.2)*(1+0.18*Math.sin(t*4+q.ph));ctx.drawImage(dustSpr[q.c]||dustSpr['#ffffff'],q.x-s,q.y-s,s*2,s*2);}
+  for(const q of G.dust){if(!inV(q.x,q.y,20))continue;const s=(8+q.v*2.6)*(1+0.2*Math.sin(t*4+q.ph));ctx.drawImage(dustSpr[DUST_C],q.x-s,q.y-s,s*2,s*2);}
   // 道具
   for(const it of G.items){if(!inV(it.x,it.y,50))continue;const I=ITEMS[it.type],bob=Math.sin(t*3+it.ph)*3,rr=17;
     ctx.globalAlpha=0.3+0.12*Math.sin(t*5+it.ph);ctx.fillStyle=I.c;ctx.beginPath();ctx.arc(it.x,it.y+bob,rr*2,0,TAU);ctx.fill();ctx.globalAlpha=1;
@@ -672,11 +697,11 @@ function draw(){
     ctx.globalAlpha=p.isPlayer?0.16:0.09;const fr=p.gR*1.15;ctx.drawImage(glowSpr[p.pal.i],p.x-fr,p.y-fr,fr*2,fr*2);ctx.globalAlpha=1;
     if(p.isPlayer){ctx.strokeStyle='rgba(255,230,140,0.22)';ctx.lineWidth=1.5/z;ctx.setLineDash([6/z,10/z]);ctx.lineDashOffset=-t*20;ctx.beginPath();ctx.arc(p.x,p.y,p.gR,0,TAU);ctx.stroke();ctx.setLineDash([]);}}
   // 引力拔河光束
-  for(const [a,b] of G.tugs){if(!inV(a.x,a.y,600))continue;const g=ctx.createLinearGradient(a.x,a.y,b.x,b.y);g.addColorStop(0,a.pal.main+'aa');g.addColorStop(1,a.pal.main+'00');
+  for(const [a,b] of G.tugs){if(!inV(a.x,a.y,600))continue;const g=ctx.createLinearGradient(a.x,a.y,b.x,b.y);g.addColorStop(0,'rgba(160,90,255,0.75)');g.addColorStop(1,'rgba(160,90,255,0)');
     ctx.strokeStyle=g;ctx.lineWidth=(6+Math.sin(t*20)*2)/Math.max(0.6,z);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
   // 轨道线（玩家）
   const pl=G.player;
-  if(pl.alive&&pl.sats.length){ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.lineWidth=1.2/z;const rings=pl.sats.length>16?3:pl.sats.length>6?2:1;for(let k=0;k<rings;k++){ctx.beginPath();ctx.arc(pl.x,pl.y,pl.r+16+k*15,0,TAU);ctx.stroke();}}
+  if(pl.alive&&pl.sats.length){ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.lineWidth=1.2/z;const rings=pl.sats.length>6?2:1;for(let k=0;k<rings;k++){ctx.beginPath();ctx.arc(pl.x,pl.y,pl.r+18+k*18,0,TAU);ctx.stroke();}}
   // 星球本体
   for(const p of alive){if(inV(p.x,p.y,p.r*2+20)&&!p.isPlayer)drawPlanetBody(p);}
   if(pl.alive)drawPlanetBody(pl);
@@ -694,8 +719,17 @@ function draw(){
   for(const r of G.proj)if(inV(r.x,r.y,20))drawRock(r,r.r*2.6);
   worldT();
   for(const p of alive)if(inV(p.x,p.y,p.gR+40))drawPlanetFX(p);
-  // 玩家瞄准指示
-  if(pl.alive&&state==='play'&&pl.sats.length){const a=input.ang,d0=pl.r+40+Math.min(2,pl.sats.length>16?2:pl.sats.length>6?1:0)*15;ctx.fillStyle='rgba(255,230,140,0.75)';ctx.beginPath();ctx.moveTo(pl.x+Math.cos(a)*(d0+14),pl.y+Math.sin(a)*(d0+14));ctx.lineTo(pl.x+Math.cos(a+0.12)*d0,pl.y+Math.sin(a+0.12)*d0);ctx.lineTo(pl.x+Math.cos(a-0.12)*d0,pl.y+Math.sin(a-0.12)*d0);ctx.closePath();ctx.fill();}
+  // 自动瞄准准星 / 手动瞄准线
+  if(pl.alive&&state==='play'&&!G.demo){
+    const F=input.fire;
+    if(F&&F.drag){const a=F.ang,L=AIM_RANGE;ctx.strokeStyle=pl.sats.length?'rgba(255,230,120,0.85)':'rgba(200,200,200,0.5)';ctx.lineWidth=3/Math.max(0.6,z);ctx.setLineDash([14/z,10/z]);ctx.lineDashOffset=-t*60;
+      ctx.beginPath();ctx.moveTo(pl.x+Math.cos(a)*(pl.r+10),pl.y+Math.sin(a)*(pl.r+10));ctx.lineTo(pl.x+Math.cos(a)*L,pl.y+Math.sin(a)*L);ctx.stroke();ctx.setLineDash([]);
+      const ex=pl.x+Math.cos(a)*L,ey=pl.y+Math.sin(a)*L,hs=16/Math.max(0.6,z);ctx.fillStyle='rgba(255,230,120,0.9)';ctx.beginPath();ctx.moveTo(ex+Math.cos(a)*hs,ey+Math.sin(a)*hs);ctx.lineTo(ex+Math.cos(a+2.5)*hs,ey+Math.sin(a+2.5)*hs);ctx.lineTo(ex+Math.cos(a-2.5)*hs,ey+Math.sin(a-2.5)*hs);ctx.closePath();ctx.fill();}
+    else if(G.autoT&&G.autoT.alive){const o=G.autoT,has=pl.sats.length>0,rr=o.r+14+Math.sin(t*6)*3;ctx.save();ctx.translate(o.x,o.y);ctx.rotate(t*1.5);
+      ctx.strokeStyle=has?'rgba(255,225,90,0.95)':'rgba(200,200,210,0.5)';ctx.lineWidth=3.2/Math.max(0.6,z);
+      for(let k=0;k<4;k++){ctx.rotate(TAU/4);ctx.beginPath();ctx.arc(0,0,rr,-0.38,0.38);ctx.stroke();ctx.beginPath();ctx.moveTo(rr-7/Math.max(0.6,z),0);ctx.lineTo(rr+5/Math.max(0.6,z),0);ctx.stroke();}
+      ctx.restore();}
+  }
   // 粒子 / 冲击波
   for(const p of G.particles){if(!inV(p.x,p.y,10))continue;ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,TAU);ctx.fill();}
   for(const g of G.rings){const k=1-g.t/g.max;ctx.globalAlpha=(1-k)*0.8;ctx.strokeStyle=g.c;ctx.lineWidth=4*(1-k)+1;ctx.beginPath();ctx.arc(g.x,g.y,g.r0+(g.r1-g.r0)*k,0,TAU);ctx.stroke();}
@@ -726,15 +760,19 @@ function drawHUD(){
   const pl=G.player,pad=10,L=pad+SAFE.l,T=pad+SAFE.t,RR=W-pad-SAFE.r,B=H-pad-SAFE.b;
   ctx.textBaseline='alphabetic';
   // 甩出按钮上的卫星数
-  const sn=pl.alive?pl.sats.length:0;if(sn!==lastSatN){lastSatN=sn;$('satN').textContent=sn+' 颗卫星';}
+  const sn=pl.alive?pl.sats.length:0,key=sn*100+(pl.slots||0);if(key!==lastSatN){lastSatN=key;$('satN').textContent='弹药 '+sn+'/'+(pl.slots||0);}
   const em=sn===0;if(em!==lastEmpty){lastEmpty=em;fb.classList.toggle('empty',em);}
   // 左上信息
   const alive=G.planets.filter(p=>p.alive);const mrank=alive.filter(p=>p.mass>pl.mass).length+1;
-  roundRect(L,T,166,58,16);ctx.fillStyle='rgba(8,10,36,0.5)';ctx.fill();
-  ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='bold 19px sans-serif';
-  ctx.fillText('剩余 '+G.aliveN+' 颗星球',L+14,T+25);
-  ctx.font='13px sans-serif';ctx.fillStyle='#ffe9a8';
-  ctx.fillText('击杀 '+pl.kills+'  质量 '+Math.round(pl.mass)+(pl.alive?'  第'+mrank+'大':''),L+14,T+46);
+  roundRect(L,T,174,80,16);ctx.fillStyle='rgba(8,10,36,0.5)';ctx.fill();
+  ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='bold 17px sans-serif';
+  ctx.fillText('剩余 '+G.aliveN+' 颗 · 击杀 '+pl.kills,L+12,T+23);
+  ctx.drawImage(dustSpr[DUST_C],L+8,T+31,18,18);
+  ctx.font='bold 14px sans-serif';ctx.fillStyle=DUST_C;ctx.fillText('质量 '+Math.round(pl.mass),L+30,T+45);
+  ctx.font='12px sans-serif';ctx.fillStyle='rgba(255,255,255,0.7)';ctx.fillText(pl.alive?'第 '+mrank+' 大':'',L+112,T+45);
+  ctx.drawImage(rockSpr[0],L+9,T+53,16,16);
+  ctx.font='bold 14px sans-serif';ctx.fillStyle='#ffcf8a';const am=pl.alive?pl.sats.length:0,amx=pl.slots||0;ctx.fillText('弹药 '+am+'/'+amx,L+30,T+67);
+  for(let k=0;k<amx;k++){ctx.fillStyle=k<am?'#ffcf8a':'rgba(255,255,255,0.18)';ctx.fillRect(L+100+k*5.6,T+58,4,9);}
   // 小地图
   const ms=Math.max(70,Math.min(104,Math.min(W,H)*0.26)),mx=RR-ms/2,my=T+ms/2,sc=(ms/2-4)/WORLD_R;
   ctx.fillStyle='rgba(8,10,36,0.55)';ctx.beginPath();ctx.arc(mx,my,ms/2,0,TAU);ctx.fill();
@@ -762,7 +800,7 @@ function drawHUD(){
       ctx.fillStyle='rgba(255,255,255,0.2)';ctx.fillRect(x+29,y+18,78,4);ctx.fillStyle=I.c;ctx.fillRect(x+29,y+18,78*v/I.dur,4);
       ctx.textBaseline='alphabetic';x+=iw+gap;}}
   // 击杀播报
-  ctx.textAlign='left';ctx.font='13px sans-serif';let fy=T+78;const maxFeed=H<450?3:5;
+  ctx.textAlign='left';ctx.font='13px sans-serif';let fy=T+100;const maxFeed=H<450?3:5;
   G.feed.slice(0,maxFeed).forEach(f=>{ctx.globalAlpha=Math.min(1,f.t);ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,0.4)';ctx.strokeText(f.text,L+4,fy);ctx.fillStyle=f.me?'#ffe066':'rgba(255,255,255,0.9)';ctx.fillText(f.text,L+4,fy);fy+=18;});
   ctx.globalAlpha=1;
   // 圈外警告
@@ -773,6 +811,11 @@ function drawHUD(){
   ctx.textAlign='center';
   G.floats.forEach((f,i)=>{ctx.globalAlpha=Math.min(1,f.t*1.5);ctx.font='bold 24px sans-serif';const y=H*0.5-(1.6-f.t)*30-i*30-40;ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,0.45)';ctx.strokeText(f.text,cx,y);ctx.fillStyle=f.color;ctx.fillText(f.text,cx,y);});
   ctx.globalAlpha=1;
+  // 开局提示（不挡操作）
+  if(state==='play'&&G.t<4.6&&!G.demo){const al=Math.min(1,(4.6-G.t)/0.6,G.t/0.3);const lines=[['吃发光星尘变大',DUST_C],['吸陨石当弹药，甩出自动瞄准','#ffcf8a'],['绿色可吃，红色快跑','#7dffa6']];
+    ctx.globalAlpha=al;ctx.font='bold 15px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';let y0=H-SAFE.b-122;
+    for(const [tx,c] of lines){const w=ctx.measureText(tx).width+30;pill(cx-w/2,y0-14,w,28,0.6);ctx.fillStyle=c;ctx.fillText(tx,cx,y0+1);y0+=34;}
+    ctx.globalAlpha=1;ctx.textBaseline='alphabetic';}
   // 摇杆
   if(state==='play'&&pl.alive&&TOUCH){
     if(input.joy){const j=input.joy;ctx.fillStyle='rgba(255,255,255,0.10)';ctx.beginPath();ctx.arc(j.ox,j.oy,JOY_R,0,TAU);ctx.fill();ctx.strokeStyle='rgba(255,255,255,0.45)';ctx.lineWidth=3;ctx.stroke();
@@ -781,7 +824,7 @@ function drawHUD(){
       ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(gx,gy,22,0,TAU);ctx.fill();
       if(G.t<8){ctx.globalAlpha=0.85;ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillText('左手按住拖动转向',gx,gy-JOY_R-10);}
       ctx.globalAlpha=1;}
-    if(G.t<8&&pl.sats.length){const fr=fb.getBoundingClientRect();ctx.globalAlpha=0.85;ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('点我砸出卫星',fr.left+fr.width/2,fr.top-12);ctx.globalAlpha=1;}
+    if(G.t<8&&pl.sats.length){const fr=fb.getBoundingClientRect();ctx.globalAlpha=0.85;ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('点我甩陨石',fr.left+fr.width/2,fr.top-12);ctx.globalAlpha=1;}
   }
 }
 
@@ -807,7 +850,7 @@ newGame(true);
 if(AUTO){startGame();}
 requestAnimationFrame(frame);
 // 测试钩子
-window.__grav={get G(){return G;},get state(){return state;},get fps(){return fps;},sim(sec,step){step=step||1/30;for(let t=0;t<sec;t+=step){update(step);if(G.over)break;}return {t:G.t,alive:G.aliveN,over:G.over,result:G.result};},start:startGame,fling(){const p=G.player;p.flingCd=0;return fling(p);}};
+window.__grav={get G(){return G;},get state(){return state;},get fps(){return fps;},sim(sec,step){step=step||1/30;for(let t=0;t<sec;t+=step){update(step);if(G.over)break;}return {t:G.t,alive:G.aliveN,over:G.over,result:G.result};},start:startGame,relation,canEat,autoTarget,derive,get input(){return input;}};
 })();
 </script>
 </body>
